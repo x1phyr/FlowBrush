@@ -28,11 +28,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - name: Prepare static Pages artifact
+        run: |
+          mkdir -p dist/pages
+          cp -R dist/client/. dist/pages/
+          cp -R dist/pages/FlowBrush/. dist/pages/
+          rm -rf dist/pages/FlowBrush
       - uses: actions/configure-pages@v5
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist/client
+          path: dist/pages
       - id: deployment
         uses: actions/deploy-pages@v4
