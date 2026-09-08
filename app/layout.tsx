@@ -1,5 +1,9 @@
 import type { Metadata } from 'next';
 import './globals.css';
+
+// FlowBrush has no server-side data or request-specific rendering.
+export const dynamic = 'force-static';
+
 export const metadata: Metadata = {
   title: 'FlowBrush · 2D FlowMap 编辑器',
   description: '绘制流向，预览水流，导出可直接用于 Shader 的 FlowMap。',
