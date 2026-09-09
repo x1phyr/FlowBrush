@@ -27,6 +27,8 @@ npm run build
 
 本项目以 [MIT License](LICENSE) 发布。GitHub Pages 会在推送到 `main` 分支后自动构建并发布静态客户端版本；应用不需要服务端、数据库或环境变量。
 
+在线体验：[https://x1phyr.github.io/FlowBrush/](https://x1phyr.github.io/FlowBrush/)
+
 ## 工作流程
 
 1. 默认打开 512×512 空白画布。新建支持 256 / 512 / 1024 / 2048 预设，也支持每边 1–2048 的自定义尺寸。
