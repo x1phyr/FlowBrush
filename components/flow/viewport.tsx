@@ -39,6 +39,21 @@ export function Viewport(props: Props) {
     space: boolean;
   }>({ stroke: null, pointer: null, pan: null, cursor: null, space: false });
   const dimensions = useRef({ w: 0, h: 0 });
+  const endInteraction = (commit: boolean) => {
+    const s = interaction.current,
+      stroke = s.stroke;
+    // Clear the active stroke first so a synchronous lostpointercapture cannot
+    // settle the same stroke a second time.
+    s.stroke = null;
+    s.pan = null;
+    s.pointer = null;
+    if (stroke) {
+      if (commit) {
+        if (stroke.finish()) latest.current.onEdit();
+      } else stroke.cancel();
+    }
+    latest.current.onDrawing(false);
+  };
   useEffect(() => {
     const c = canvas.current!,
       ctx = c.getContext('2d')!,
@@ -279,15 +294,11 @@ export function Viewport(props: Props) {
       }
     };
     const blur = () => {
-      const s = interaction.current;
-      if (s.stroke) {
-        s.stroke.cancel();
-        s.stroke = null;
-      }
-      s.pan = null;
-      s.pointer = null;
-      s.space = false;
-      latest.current.onDrawing(false);
+      // Browsers can revoke pointer capture when the window loses focus. The
+      // samples already drawn are valid user input, so preserve them as a
+      // completed stroke instead of rolling the whole gesture back.
+      endInteraction(true);
+      interaction.current.space = false;
     };
     window.addEventListener('keydown', keydown);
     window.addEventListener('keyup', keyup);
@@ -316,7 +327,9 @@ export function Viewport(props: Props) {
       window.removeEventListener('keyup', keyup);
       window.removeEventListener('blur', blur);
       c.removeEventListener('wheel', wheel);
-      blur();
+      // Unmounting is different from an interrupted browser gesture: the
+      // owning field may be getting replaced, so do not commit into it.
+      endInteraction(false);
     };
   }, []);
   useEffect(() => {
@@ -398,34 +411,22 @@ export function Viewport(props: Props) {
       onPointerUp={(e) => {
         const s = interaction.current;
         if (s.pointer !== e.pointerId) return;
-        if (s.stroke) {
-          s.stroke.move(toField(point(e)));
-          if (s.stroke.finish()) props.onEdit();
-        }
-        s.stroke = null;
-        s.pan = null;
-        s.pointer = null;
-        props.onDrawing(false);
+        s.stroke?.move(toField(point(e)));
+        endInteraction(true);
         if (e.currentTarget.hasPointerCapture(e.pointerId))
           e.currentTarget.releasePointerCapture(e.pointerId);
       }}
-      onPointerCancel={() => {
+      onPointerCancel={(e) => {
         const s = interaction.current;
-        s.stroke?.cancel();
-        s.stroke = null;
-        s.pan = null;
-        s.pointer = null;
-        props.onDrawing(false);
+        if (s.pointer !== e.pointerId) return;
+        // pointercancel is commonly emitted for OS/browser interruptions near
+        // pointer-up. Keep the portion the user has already drawn.
+        endInteraction(true);
       }}
       onLostPointerCapture={() => {
-        const s = interaction.current;
-        if (s.stroke) {
-          s.stroke.cancel();
-          s.stroke = null;
-        }
-        s.pan = null;
-        s.pointer = null;
-        props.onDrawing(false);
+        // Normal pointer-up clears the interaction before releasing capture;
+        // this only settles an unexpectedly revoked capture.
+        endInteraction(true);
       }}
       onPointerLeave={() => {
         interaction.current.cursor = null;
